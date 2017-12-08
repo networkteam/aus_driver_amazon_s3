@@ -282,6 +282,9 @@ class AmazonS3Driver extends AbstractHierarchicalFilesystemDriver
      */
     public function fileExists($identifier)
     {
+        if ($identifier === '') {
+            return false;
+        }
         if (substr($identifier, -1) === '/') {
             return false;
         }
@@ -296,11 +299,11 @@ class AmazonS3Driver extends AbstractHierarchicalFilesystemDriver
      */
     public function folderExists($identifier)
     {
-        if ($identifier === self::ROOT_FOLDER_IDENTIFIER) {
-            return true;
-        }
         if (substr($identifier, -1) !== '/') {
             $identifier .= '/';
+        }
+        if ($identifier === self::ROOT_FOLDER_IDENTIFIER) {
+            return true;
         }
         return $this->objectExists($identifier);
     }
@@ -312,7 +315,7 @@ class AmazonS3Driver extends AbstractHierarchicalFilesystemDriver
      */
     public function fileExistsInFolder($fileName, $folderIdentifier)
     {
-        return $this->objectExists($folderIdentifier . $fileName);
+        return $this->objectExists($folderIdentifier . '/' . $fileName);
     }
 
     /**
@@ -324,7 +327,7 @@ class AmazonS3Driver extends AbstractHierarchicalFilesystemDriver
      */
     public function folderExistsInFolder($folderName, $folderIdentifier)
     {
-        return $this->objectExists($folderIdentifier . $folderName . '/');
+        return $this->objectExists($folderIdentifier . '/' . $folderName . '/');
     }
 
     /**
@@ -1397,12 +1400,15 @@ class AmazonS3Driver extends AbstractHierarchicalFilesystemDriver
         ];
         $result = $this->getCachedResponse('listObjectsV2', array_merge_recursive($args, $overrideArgs));
 
-        // Cache the given meta info
-        foreach ($result['Contents'] as $content) {
-            $fileIdentifier = $identifier . $content['Key'];
-            $this->normalizeIdentifier($fileIdentifier);
-            if (!isset($this->metaInfoCache[$fileIdentifier])) {
-                $this->metaInfoCache[$fileIdentifier] = $this->getMetaInfoFromResponse($fileIdentifier, $content);
+
+        if (isset($result['Contents'])) {
+            // Cache the given meta info
+            foreach ($result['Contents'] as $content) {
+                $fileIdentifier = $identifier . $content['Key'];
+                $this->normalizeIdentifier($fileIdentifier);
+                if (!isset($this->metaInfoCache[$fileIdentifier])) {
+                    $this->metaInfoCache[$fileIdentifier] = $this->getMetaInfoFromResponse($fileIdentifier, $content);
+                }
             }
         }
 
